@@ -1,0 +1,8 @@
+{
+  "name": "Fierio & the 8 Lost Kittens",
+  "description": "A 16-bit retro platformer and interactive world map adventure starring Fierio the dragon rescuing Angelica, Wizzle, D da Baller, Swipey, Ego, Mask, Loki, and Pitsy.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
