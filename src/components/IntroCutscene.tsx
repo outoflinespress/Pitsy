@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { STAGES } from '../game/stages';
-import { drawFeather, drawFierio, drawKitten } from '../game/sprites';
+import { drawFierio, drawKitten, drawMapleLeaf } from '../game/sprites';
 import { audio } from '../game/audio';
 import { gamepadManager, useGamepadMenu, useGamepadStatus } from '../game/gamepad';
 import { FastForward } from 'lucide-react';
@@ -77,15 +77,15 @@ export const IntroCutscene: React.FC<IntroCutsceneProps> = ({ onComplete }) => {
 
       // Trigger synced audio + story captions
       if (t >= 0.65) {
-        cue('feather', () => {
-          audio.playFeatherChime();
-          setCaption('A bright golden feather floats past the open window!');
+        cue('leaf', () => {
+          audio.playLeafChime();
+          setCaption('A bright autumn maple leaf floats past the open window!');
         });
       }
       if (t >= 1.5) {
         cue('pitsy_spot', () => {
           audio.playMeow(pitsy.meowPitch, true);
-          setCaption('Pitsy spots the feather and dashes out the door chasing it!');
+          setCaption('Pitsy spots the maple leaf and dashes out the door chasing it!');
         });
       }
       if (t >= 3.7) {
@@ -402,20 +402,20 @@ export const IntroCutscene: React.FC<IntroCutsceneProps> = ({ onComplete }) => {
             }
           }
 
-          // --- FLOATING GOLDEN FEATHER ---
+          // --- FLOATING AUTUMN MAPLE LEAF ---
           if (t >= 0.5 && t < 3.6) {
             const p = (t - 0.5) / 3.1;
             const fx = 180 + p * 285;
             const fy = 78 + Math.sin(p * Math.PI * 3.5) * 16 + p * 88;
             if (fx < 455) {
-              drawFeather(ctx, fx, fy, t * 2);
+              drawMapleLeaf(ctx, fx, fy, t * 2, 1.15);
             }
           } else if (t >= 7.8) {
-            // One stray shimmering feather left near the doorway for Fierio to spot
-            drawFeather(ctx, 392, 198, t * 1.4);
+            // One stray fluttering maple leaf left near the doorway for Fierio to spot
+            drawMapleLeaf(ctx, 392, 198, t * 1.4, 1.05);
           }
 
-          // --- PITSY CHASING THE FEATHER ---
+          // --- PITSY CHASING THE MAPLE LEAF ---
           if (t < 1.45) {
             // Pitsy napping near the window rug
             drawKitten(ctx, 224, 194, pitsy, { sleeping: true, frame, scale: 1.15 });
@@ -503,7 +503,7 @@ export const IntroCutscene: React.FC<IntroCutsceneProps> = ({ onComplete }) => {
           width={W}
           height={H}
           className="w-full aspect-video block pixel-canvas"
-          aria-label="Opening story cutscene showing Pitsy chasing a feather, the other 7 kittens chasing Pitsy, and Fierio waking up to find them"
+          aria-label="Opening story cutscene showing Pitsy chasing a maple leaf, the other 7 kittens chasing Pitsy, and Fierio waking up to find them"
         />
 
         <button

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { GameScreenState, PlayerProgress } from './game/types';
 import { STAGES, getStageById } from './game/stages';
 import {
+  ALL_ABILITY_IDS,
   getUnlockedAbilities,
   loadProgress,
   resetProgressStorage,
@@ -34,8 +35,8 @@ export default function App() {
   }, []);
 
   const unlockedAbilities = useMemo(
-    () => getUnlockedAbilities(progress.rescuedStages),
-    [progress.rescuedStages]
+    () => getUnlockedAbilities(progress.rescuedStages, progress.unlockedAbilities),
+    [progress.rescuedStages, progress.unlockedAbilities]
   );
 
   const updateProgress = useCallback((updater: (prev: PlayerProgress) => PlayerProgress) => {
@@ -91,6 +92,7 @@ export default function App() {
 
   const handleStageClear = useCallback(
     (stageId: number, treatsCollected: number, treatsTotal: number) => {
+      const stageData = getStageById(stageId);
       updateProgress((prev) => {
         const wasNewRescue = !prev.rescuedStages.includes(stageId);
         const rescuedStages = wasNewRescue
@@ -99,6 +101,14 @@ export default function App() {
 
         const nextUnlocked = Math.min(8, Math.max(prev.highestUnlockedStage, stageId + 1));
         const unlockedANewStage = nextUnlocked > prev.highestUnlockedStage;
+
+        const mergedAbilities = prev.unlockedAbilities.includes(stageData.rewardAbility.id)
+          ? prev.unlockedAbilities
+          : [...prev.unlockedAbilities, stageData.rewardAbility.id];
+
+        const nextPitsySaves =
+          stageId === 8 && wasNewRescue ? prev.pitsySaves + 1 : prev.pitsySaves;
+        const victoryUnlocked = prev.victoryUnlocked || nextPitsySaves >= 2;
 
         const prevBest = prev.bestTreatsByStage[stageId]?.collected ?? 0;
         const bestTreatsByStage = {
@@ -112,6 +122,9 @@ export default function App() {
         return {
           ...prev,
           rescuedStages,
+          unlockedAbilities: mergedAbilities,
+          pitsySaves: nextPitsySaves,
+          victoryUnlocked,
           highestUnlockedStage: nextUnlocked,
           bestTreatsByStage,
           pendingUnlockStage: unlockedANewStage ? nextUnlocked : prev.pendingUnlockStage,
@@ -120,6 +133,21 @@ export default function App() {
     },
     [updateProgress]
   );
+
+  const handleStartRoundTwo = useCallback(() => {
+    updateProgress((prev) => ({
+      ...prev,
+      highestUnlockedStage: 1,
+      rescuedStages: [],
+      unlockedAbilities: [...ALL_ABILITY_IDS],
+      pitsySaves: Math.max(1, prev.pitsySaves),
+      introSeen: true,
+      pendingUnlockStage: null,
+    }));
+    setSelectedStageId(1);
+    setActiveStageId(1);
+    navigateScreen('WORLD_MAP');
+  }, [updateProgress, navigateScreen]);
 
   const handleExitStageToMap = () => {
     if (activeStageId === 8 && progress.rescuedStages.includes(8)) {
@@ -273,6 +301,7 @@ export default function App() {
             stage={activeStage}
             unlockedAbilities={unlockedAbilities}
             alreadyRescued={progress.rescuedStages.includes(activeStage.id)}
+            pitsySaves={progress.pitsySaves}
             onStageClear={handleStageClear}
             onExitToMap={handleExitStageToMap}
           />
@@ -280,8 +309,12 @@ export default function App() {
 
         {screen === 'GRAND_REUNION' && (
           <GrandReunionModal
+            endingMode={
+              progress.pitsySaves >= 2 || progress.victoryUnlocked ? 'true_victory' : 'loop_1'
+            }
             totalTreats={totalTreatsSummary.collected}
             maxTreats={totalTreatsSummary.max}
+            onStartRoundTwo={handleStartRoundTwo}
             onExploreMap={() => navigateScreen('WORLD_MAP')}
             onPlayAgain={() => {
               const fresh = resetProgressStorage();

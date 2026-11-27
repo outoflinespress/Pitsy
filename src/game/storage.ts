@@ -3,9 +3,14 @@ import { STAGES } from './stages';
 
 const STORAGE_KEY = 'fierio_8_lost_kittens_v1';
 
+export const ALL_ABILITY_IDS: AbilityId[] = STAGES.map((s) => s.rewardAbility.id);
+
 export const DEFAULT_PROGRESS: PlayerProgress = {
   highestUnlockedStage: 1,
   rescuedStages: [],
+  unlockedAbilities: [],
+  pitsySaves: 0,
+  victoryUnlocked: false,
   introSeen: false,
   bestTreatsByStage: {},
   pendingUnlockStage: null,
@@ -30,9 +35,35 @@ export function loadProgress(): PlayerProgress {
         break;
       }
     }
+
+    const validAbilitySet = new Set<AbilityId>(ALL_ABILITY_IDS);
+    const mergedAbilities = new Set<AbilityId>();
+    if (Array.isArray(parsed.unlockedAbilities)) {
+      for (const ab of parsed.unlockedAbilities) {
+        if (typeof ab === 'string' && validAbilitySet.has(ab as AbilityId)) {
+          mergedAbilities.add(ab as AbilityId);
+        }
+      }
+    }
+    for (const stage of STAGES) {
+      if (rescued.includes(stage.id)) {
+        mergedAbilities.add(stage.rewardAbility.id);
+      }
+    }
+
+    const pitsySaves =
+      typeof parsed.pitsySaves === 'number' && parsed.pitsySaves >= 0
+        ? Math.floor(parsed.pitsySaves)
+        : rescued.includes(8)
+        ? 1
+        : 0;
+
     return {
       highestUnlockedStage: maxUnlocked,
       rescuedStages: rescued,
+      unlockedAbilities: Array.from(mergedAbilities),
+      pitsySaves,
+      victoryUnlocked: Boolean(parsed.victoryUnlocked) || pitsySaves >= 2,
       introSeen: Boolean(parsed.introSeen),
       bestTreatsByStage: parsed.bestTreatsByStage && typeof parsed.bestTreatsByStage === 'object'
         ? parsed.bestTreatsByStage
@@ -65,8 +96,11 @@ export function resetProgressStorage(): PlayerProgress {
   return { ...DEFAULT_PROGRESS };
 }
 
-export function getUnlockedAbilities(rescuedStages: number[]): Set<AbilityId> {
-  const set = new Set<AbilityId>();
+export function getUnlockedAbilities(
+  rescuedStages: number[],
+  persistedAbilities: AbilityId[] = []
+): Set<AbilityId> {
+  const set = new Set<AbilityId>(persistedAbilities);
   for (const stage of STAGES) {
     if (rescuedStages.includes(stage.id)) {
       set.add(stage.rewardAbility.id);

@@ -538,12 +538,12 @@ export const STAGES: StageBlueprint[] = [
 
   // =========================================================================
   // STAGE 8: BOARD GAME CASTLE — Rescue Pitsy -> Unlocks STAR-FIERIO CROWN
-  // Finale showcasing EVERY ability! Pitsy is clutching the golden feather!
+  // Finale showcasing EVERY ability! Pitsy is clutching the autumn maple leaf!
   // =========================================================================
   {
     id: 8,
     name: 'Board Game Castle',
-    subtitle: 'Royal dice towers where Pitsy caught the feather',
+    subtitle: 'Royal dice towers where Pitsy caught the maple leaf',
     landmarkType: 'castle',
     mapPos: { x: 422, y: 74 },
     palette: {
@@ -568,10 +568,10 @@ export const STAGES: StageBlueprint[] = [
       bellyColor: '#FFFFFF',
       stripeColor: '#D97706',
       accentColor: '#FACC15',
-      accessory: 'feather_crown',
+      accessory: 'leaf_crown',
       meowPitch: 1.24,
-      bio: 'The playful little spotted kitten who started it all by chasing the golden feather!',
-      holdsFeather: true,
+      bio: 'The playful little spotted kitten who started it all by chasing the fluttering maple leaf!',
+      holdsLeaf: true,
     },
     rewardAbility: {
       id: 'star_crown',

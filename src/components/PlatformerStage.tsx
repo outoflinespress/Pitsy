@@ -15,6 +15,7 @@ interface PlatformerStageProps {
   stage: StageBlueprint;
   unlockedAbilities: Set<AbilityId>;
   alreadyRescued: boolean;
+  pitsySaves?: number;
   onStageClear: (stageId: number, treatsCollected: number, treatsTotal: number) => void;
   onExitToMap: () => void;
 }
@@ -90,6 +91,7 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
   stage,
   unlockedAbilities,
   alreadyRescued,
+  pitsySaves = 0,
   onStageClear,
   onExitToMap,
 }) => {
@@ -363,6 +365,8 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
       tailBouncing: false,
       wallDir: 0 as -1 | 0 | 1,
       invulnTimer: 0,
+      respawnLockTimer: 0,
+      respawnHeldDir: 0 as -1 | 0 | 1,
       hearts: startMaxHearts,
       treatsCollected: 0,
       lastSafeX: spawnX,
@@ -428,15 +432,112 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
       floatingTexts.push({ x, y, text, color, life: 0.95, maxLife: 0.95 });
     };
 
+    const hasFloorAt = (worldX: number, footY: number): boolean => {
+      const col = Math.floor(worldX / TILE);
+      const footRow = Math.floor((footY + 2) / TILE);
+      if (isSolid(col, footRow) || isOneWay(col, footRow)) return true;
+      for (const p of platforms) {
+        if (worldX >= p.x && worldX <= p.x + p.w && Math.abs(footY - p.y) <= 4) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const hasGroundBelow = (worldX: number, startY: number): boolean => {
+      const col = Math.floor(worldX / TILE);
+      const startRow = Math.max(0, Math.floor(startY / TILE));
+      for (let r = startRow; r < rows; r++) {
+        if (isSolid(col, r) || isOneWay(col, r)) return true;
+      }
+      for (const p of platforms) {
+        if (worldX >= p.x && worldX <= p.x + p.w && p.y >= startY - 4) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const isSafeFloorTile = (c: number, r: number): boolean => {
+      const ch = getTile(c, r);
+      if (ch !== '#' && ch !== '=') return false;
+      if (isSolid(c, r - 1) || isSolid(c, r - 2)) return false;
+      if (getTile(c, r - 1) === '^') return false;
+      return true;
+    };
+
+    const resolveSafeRespawnPos = (preferredX: number, preferredY: number): { x: number; y: number } => {
+      const prefCol = Math.floor(preferredX / TILE);
+      const footRow = Math.floor((preferredY + 2) / TILE);
+      if (
+        isSafeFloorTile(prefCol - 1, footRow) &&
+        isSafeFloorTile(prefCol, footRow) &&
+        isSafeFloorTile(prefCol + 1, footRow)
+      ) {
+        return { x: prefCol * TILE + TILE / 2, y: footRow * TILE };
+      }
+      for (let offset = 1; offset <= 6; offset++) {
+        for (const dir of [-1, 1]) {
+          const c = prefCol + dir * offset;
+          if (isSafeFloorTile(c - 1, footRow) && isSafeFloorTile(c, footRow) && isSafeFloorTile(c + 1, footRow)) {
+            return { x: c * TILE + TILE / 2, y: footRow * TILE };
+          }
+        }
+      }
+      return { x: spawnX, y: spawnY };
+    };
+
     const hurtPlayer = (knockDir: number) => {
       if (player.invulnTimer > 0 || rescueAnimating) return;
       player.hearts = Math.max(0, player.hearts - 1);
       setHudHearts(player.hearts);
       player.invulnTimer = 2.0; // Momentary 2-second invincibility grace period
-      player.vy = -170;
-      player.vx = knockDir * 115;
+      // Zero horizontal launch velocity so a side hit never throws Fierio across/into a pit
+      player.vx = 0;
+      player.vy = player.grounded ? 0 : Math.max(0, player.vy);
       player.tailBouncing = false;
       player.dashTimer = 0;
+
+      // Tiny safe horizontal recoil (max 4px) that never enters a wall or steps over a pit
+      const dir = knockDir < 0 ? -1 : 1;
+      const halfW = player.w / 2;
+      const topRow = Math.floor((player.y - player.h + 2) / TILE);
+      const botRow = Math.floor((player.y - 2) / TILE);
+      const maxNudgePx = 4;
+
+      for (let step = 0; step < maxNudgePx; step++) {
+        const nextX = player.x + dir;
+        if (nextX < 10 || nextX > mapWidthPx - 10) break;
+
+        const edgeCol = Math.floor((nextX + dir * halfW) / TILE);
+        let hitsWall = false;
+        for (let r = topRow; r <= botRow; r++) {
+          if (isSolid(edgeCol, r)) {
+            hitsWall = true;
+            break;
+          }
+        }
+        if (hitsWall) break;
+
+        const leadingEdgeX = nextX + dir * halfW;
+        const innerFootX = nextX + dir * (halfW - 2);
+        if (player.grounded) {
+          if (
+            !hasFloorAt(nextX, player.y) ||
+            !hasFloorAt(innerFootX, player.y) ||
+            !hasGroundBelow(leadingEdgeX, player.y)
+          ) {
+            break;
+          }
+        } else {
+          if (!hasGroundBelow(nextX, player.y) || !hasGroundBelow(leadingEdgeX, player.y)) {
+            break;
+          }
+        }
+
+        player.x = nextX;
+      }
+
       shakeTimer = 0.2;
       audio.playHurt();
       gamepadManager.rumble('hurt');
@@ -545,15 +646,23 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
 
       if (player.invulnTimer > 0) player.invulnTimer = Math.max(0, player.invulnTimer - dt);
       if (player.fireCooldown > 0) player.fireCooldown = Math.max(0, player.fireCooldown - dt);
+      if (player.respawnLockTimer > 0) player.respawnLockTimer = Math.max(0, player.respawnLockTimer - dt);
 
-      if (jumpPressed) {
+      const rawMoveDir = (moveRight ? 1 : 0) - (moveLeft ? 1 : 0);
+      if (player.respawnHeldDir !== 0) {
+        if (rawMoveDir !== player.respawnHeldDir || (jumpPressed && player.respawnLockTimer <= 0)) {
+          player.respawnHeldDir = 0;
+        }
+      }
+
+      if (jumpPressed && player.respawnLockTimer <= 0) {
         player.jumpBuffer = 0.11;
       } else {
         player.jumpBuffer = Math.max(0, player.jumpBuffer - dt);
       }
 
       // --- ABILITY 2: FIRE PUFF (Wizzle) & STAR PUFFS (Pitsy) ---
-      if (firePressed) {
+      if (firePressed && player.respawnLockTimer <= 0) {
         if (effFirePuff && player.fireCooldown <= 0) {
           fireballs.push({
             x: player.x + player.facing * 14,
@@ -570,7 +679,7 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
       }
 
       // --- ABILITY 4: EMBER DASH (Swipey) ---
-      if (dashPressed) {
+      if (dashPressed && player.respawnLockTimer <= 0) {
         if (effEmberDash && !player.dashUsed && player.dashTimer <= 0) {
           player.dashTimer = 0.2;
           player.dashUsed = !player.grounded;
@@ -584,7 +693,7 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
       }
 
       // --- ABILITY 3: TAIL BOUNCE (D da Baller) ---
-      if (downPressed) {
+      if (downPressed && player.respawnLockTimer <= 0) {
         if (effTailBounce && !player.grounded && !player.tailBouncing && player.dashTimer <= 0) {
           player.tailBouncing = true;
           player.vy = 255;
@@ -594,14 +703,18 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
 
       // Horizontal Movement
       const runSpeed = effStarCrown ? 122 : 114;
-      if (player.dashTimer > 0) {
+      if (player.respawnLockTimer > 0) {
+        player.vx = 0;
+        player.vy = 0;
+      } else if (player.dashTimer > 0) {
         player.dashTimer -= dt;
         player.vy = 0;
         if (frame % 2 === 0) {
           spawnParticles(player.x - player.facing * 12, player.y - 13, '#F97316', 2, 25);
         }
       } else {
-        const moveDir = (moveRight ? 1 : 0) - (moveLeft ? 1 : 0);
+        const moveDir =
+          player.respawnHeldDir !== 0 && rawMoveDir === player.respawnHeldDir ? 0 : rawMoveDir;
         if (moveDir !== 0) {
           player.facing = moveDir as 1 | -1;
           const accel = player.grounded ? 920 : 620;
@@ -814,8 +927,16 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
             player.vy = 0;
             player.grounded = true;
             if (landedTile === '#' || landedTile === '=') {
-              player.lastSafeX = player.x;
-              player.lastSafeY = player.y;
+              const safeCol = Math.floor(player.x / TILE);
+              const safeRow = Math.floor((player.y + 2) / TILE);
+              if (
+                isSafeFloorTile(safeCol - 1, safeRow) &&
+                isSafeFloorTile(safeCol, safeRow) &&
+                isSafeFloorTile(safeCol + 1, safeRow)
+              ) {
+                player.lastSafeX = safeCol * TILE + TILE / 2;
+                player.lastSafeY = safeRow * TILE;
+              }
             }
           }
         }
@@ -844,7 +965,7 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
         }
       }
 
-      // Pit fall recovery (lose 1 heart and return cleanly to last safe solid ledge!)
+      // Pit fall recovery (lose 1 heart and return cleanly to safe solid ground!)
       if (player.y > H + 34) {
         player.hearts = Math.max(0, player.hearts - 1);
         setHudHearts(player.hearts);
@@ -853,13 +974,24 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
         if (player.hearts <= 0) {
           setOverlay('game_over');
         } else {
-          player.x = player.lastSafeX;
-          player.y = player.lastSafeY - 6;
+          const safePos = resolveSafeRespawnPos(player.lastSafeX, player.lastSafeY);
+          player.x = safePos.x;
+          player.y = safePos.y;
           player.vx = 0;
           player.vy = 0;
-          player.invulnTimer = 2.0; // Momentary 2-second invincibility after pit recovery
+          player.grounded = true;
+          player.coyoteTimer = 0.11;
+          player.jumpBuffer = 0;
+          player.invulnTimer = 1.5; // 1.5 seconds of invulnerability after pit respawn
+          player.respawnLockTimer = 0.22; // Brief zero-velocity settle on safe ground
+          player.respawnHeldDir = rawMoveDir as -1 | 0 | 1;
           player.tailBouncing = false;
           player.dashTimer = 0;
+          player.dashUsed = false;
+          player.airJumpUsed = false;
+          player.flutterTime = 0;
+          spawnParticles(player.x, player.y - 14, '#EF233C', 8, 65);
+          spawnFloatingText(player.x, player.y - 34, '-1 ♥', '#FF758F');
         }
       }
 
@@ -1624,7 +1756,9 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
               <div className="bg-[#141826] border-2 border-[#364266] p-3.5 text-left space-y-1">
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="font-[var(--font-pixel)] text-[#FACC15]">
-                    {wasAlreadyRescuedOnStart ? 'Ability Mastered' : 'New Ability Unlocked!'}
+                    {wasAlreadyRescuedOnStart || unlockedAbilities.has(stage.rewardAbility.id)
+                      ? 'Upgrade Mastered'
+                      : 'New Ability Unlocked!'}
                   </span>
                   <span className="font-[var(--font-mono)] text-[#94A3B8]">
                     {getAbilityControlHint(stage.rewardAbility.id, gamepad.prompts, stage.rewardAbility.keyHint)}
@@ -1647,7 +1781,11 @@ export const PlatformerStage: React.FC<PlatformerStageProps> = ({
                     gamepad.connected && overlayFocusIdx === 0 ? 'ring-2 ring-[#FACC15] ring-offset-2 ring-offset-[#1E253B]' : ''
                   }`}
                 >
-                  {stage.id === 8 ? 'Celebrate Reunion' : `Unlock Stage ${stage.id + 1} on Map`}
+                  {stage.id === 8
+                    ? pitsySaves >= 2
+                      ? 'Head Home & Rest!'
+                      : 'Walk Home Together'
+                    : `Unlock Stage ${stage.id + 1} on Map`}
                 </button>
                 <button
                   type="button"

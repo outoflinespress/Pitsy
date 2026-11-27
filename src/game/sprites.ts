@@ -293,6 +293,8 @@ export interface KittenDrawOpts {
   frame?: number;
   happy?: boolean;
   sleeping?: boolean;
+  waving?: boolean;
+  surprised?: boolean;
   silhouette?: boolean;
   scale?: number;
   castShadow?: boolean;
@@ -314,6 +316,8 @@ export function drawKitten(
     frame = 0,
     happy = false,
     sleeping = false,
+    waving = false,
+    surprised = false,
     silhouette = false,
     scale = 1,
     castShadow = false,
@@ -387,7 +391,16 @@ export function drawKitten(
   if (!silhouette) {
     px(-4, -10 + hop, 1, 1, '#FDA4AF'); // left rosy cheek
     px(4, -10 + hop, 1, 1, '#FDA4AF'); // right rosy cheek
-    if (happy) {
+    if (waving || surprised) {
+      // Wide-eyed panicked/shouting kitten expression!
+      px(-4, -13 + hop, 3, 3, '#FFFFFF');
+      px(-3, -12 + hop, 2, 2, '#0B0E17');
+      px(2, -13 + hop, 3, 3, '#FFFFFF');
+      px(2, -12 + hop, 2, 2, '#0B0E17');
+      // Big open shouting mouth ("MEOW!!" / "NOOOOO!")
+      px(-1, -10 + hop, 3, 3, '#991B1B');
+      px(0, -10 + hop, 2, 2, '#FB7185');
+    } else if (happy) {
       px(-3, -12 + hop, 2, 1, '#0B0E17');
       px(2, -12 + hop, 2, 1, '#0B0E17');
       px(-1, -10 + hop, 3, 2, '#FB7185');
@@ -399,6 +412,21 @@ export function drawKitten(
       px(2, -12 + hop, 1, 1, '#FFFFFF'); // eye glint!
       px(0, -10 + hop, 1, 1, '#FB7185');
     }
+  }
+
+  // Frantically waving arms raised high in the air!
+  if (waving && !silhouette) {
+    const wave = Math.floor(frame / 4) % 2;
+    const leftArmY = wave === 0 ? -15 : -12;
+    const rightArmY = wave === 0 ? -12 : -15;
+    // Left raised paw
+    px(-9, leftArmY + hop, 4, 4, '#0B0E17');
+    px(-8, leftArmY + 1 + hop, 3, 2, kitten.coatColor);
+    px(-8, leftArmY + 1 + hop, 2, 1, kitten.bellyColor);
+    // Right raised paw
+    px(5, rightArmY + hop, 4, 4, '#0B0E17');
+    px(5, rightArmY + 1 + hop, 3, 2, kitten.coatColor);
+    px(6, rightArmY + 1 + hop, 2, 1, kitten.bellyColor);
   }
 
   // Signature 16-bit Accessories per named kitten!
@@ -457,12 +485,12 @@ export function drawKitten(
         px(-4, -8 + hop, 8, 2, '#10B981');
         px(0, -7 + hop, 2, 2, '#FACC15');
         break;
-      case 'feather_crown': // Pitsy holding the golden feather!
+      case 'leaf_crown': // Pitsy holding the autumn maple leaf!
         px(-3, -18 + hop, 6, 2, '#D97706');
         px(-2, -19 + hop, 4, 2, '#FACC15');
         px(-1, -20 + hop, 2, 1, '#FEF08A');
-        if (kitten.holdsFeather) {
-          drawFeather(ctx, 8, -9 + hop, frame * 0.12);
+        if (kitten.holdsLeaf) {
+          drawMapleLeaf(ctx, 9, -9 + hop, frame * 0.12, 0.85);
         }
         break;
     }
@@ -471,25 +499,68 @@ export function drawKitten(
   ctx.restore();
 }
 
-export function drawFeather(ctx: CanvasRenderingContext2D, x: number, y: number, time: number): void {
-  const sway = Math.round(Math.sin(time * 2.5) * 1.6);
+/**
+ * 16-Bit multi-tone autumn crimson-orange Maple Leaf with 5-lobed silhouette,
+ * golden vein highlights, woody stem, and optional scale/rotation for close-up camera swoops.
+ */
+export function drawMapleLeaf(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  time: number,
+  scale = 1,
+  rotation?: number
+): void {
+  const swayY = scale <= 2 ? Math.sin(time * 2.5) * 1.6 : 0;
+  const rot = rotation !== undefined ? rotation : Math.sin(time * 2.1) * 0.24;
+
   ctx.save();
-  ctx.translate(Math.round(x), Math.round(y + sway));
-  // Soft golden aura
-  ctx.fillStyle = 'rgba(254, 240, 138, 0.28)';
-  ctx.fillRect(-6, -5, 13, 8);
-  // Multi-tone 16-bit golden feather
-  ctx.fillStyle = '#B45309';
-  ctx.fillRect(-5, -2, 9, 4);
+  ctx.translate(Math.round(x), Math.round(y + swayY));
+  ctx.rotate(rot);
+  ctx.scale(scale, scale);
+
+  // Soft warm autumn shimmer aura
+  ctx.fillStyle = 'rgba(249, 115, 22, 0.26)';
+  ctx.fillRect(-7, -7, 14, 13);
+
+  // Dark pixel outline of classic 5-lobed maple leaf
+  ctx.fillStyle = '#0B0E17';
+  ctx.fillRect(-2, -7, 4, 3); // top lobe tip
+  ctx.fillRect(-4, -5, 8, 3); // upper crown
+  ctx.fillRect(-7, -3, 14, 4); // wide left & right lobes
+  ctx.fillRect(-6, 1, 12, 3); // lower lobes
+  ctx.fillRect(-3, 3, 6, 2); // leaf base
+
+  // Deep crimson base fill
+  ctx.fillStyle = '#B91C1C';
+  ctx.fillRect(-1, -6, 2, 2);
+  ctx.fillRect(-3, -4, 6, 3);
+  ctx.fillRect(-6, -2, 12, 3);
+  ctx.fillRect(-5, 1, 10, 2);
+  ctx.fillRect(-2, 3, 4, 1);
+
+  // Vibrant vermilion-red midtone
+  ctx.fillStyle = '#EF4444';
+  ctx.fillRect(-1, -5, 2, 2);
+  ctx.fillRect(-3, -3, 6, 3);
+  ctx.fillRect(-5, -2, 10, 2);
+  ctx.fillRect(-4, 0, 8, 2);
+
+  // Fiery autumn orange & golden inner veins
+  ctx.fillStyle = '#F97316';
+  ctx.fillRect(-1, -4, 2, 6);
+  ctx.fillRect(-4, -1, 8, 1);
+  ctx.fillRect(-3, 1, 6, 1);
   ctx.fillStyle = '#FACC15';
-  ctx.fillRect(-4, -2, 7, 3);
-  ctx.fillStyle = '#FEF08A';
-  ctx.fillRect(-4, -3, 6, 2);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(-3, -3, 4, 1);
-  // Quill stem
-  ctx.fillStyle = '#F59E0B';
-  ctx.fillRect(3, 0, 4, 1);
+  ctx.fillRect(0, -3, 1, 5);
+  ctx.fillRect(-2, -1, 4, 1);
+
+  // Crisp woody maple stem
+  ctx.fillStyle = '#451A03';
+  ctx.fillRect(-1, 4, 2, 4);
+  ctx.fillStyle = '#92400E';
+  ctx.fillRect(0, 4, 1, 3);
+
   ctx.restore();
 }
 

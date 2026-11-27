@@ -352,8 +352,10 @@ export const WorldMapView: React.FC<WorldMapViewProps> = ({
           }
 
           // --- STAGE LANDMARKS, BEVELED MEDALLIONS, LOCKS & KITTENS ---
-          const hasFlameShield = progress.rescuedStages.includes(5);
-          const hasStarCrown = progress.rescuedStages.includes(8);
+          const hasFlameShield =
+            progress.rescuedStages.includes(5) || progress.unlockedAbilities.includes('flame_shield');
+          const hasStarCrown =
+            progress.rescuedStages.includes(8) || progress.unlockedAbilities.includes('star_crown');
 
           for (const st of STAGES) {
             const isUnlocked = st.id <= progress.highestUnlockedStage;
@@ -481,6 +483,18 @@ export const WorldMapView: React.FC<WorldMapViewProps> = ({
         )}
       </div>
 
+      {/* Round 2 (New Game+) Banner: Pitsy chased another maple leaf, all upgrades kept! */}
+      {progress.pitsySaves === 1 && !progress.victoryUnlocked && (
+        <div className="bg-[#1E253B] border-2 border-[#F97316] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="inline-flex items-center gap-2 text-[#FEF08A]">
+            <Sparkles className="w-4 h-4 text-[#F97316] shrink-0" aria-hidden="true" />
+            <span>
+              <strong className="font-[var(--font-pixel)] text-[#FDBA74]">Round 2!</strong> Pitsy chased another maple leaf and all 8 kittens ran off again—rescue them with <strong className="text-[#86EFAC]">all 8 dragon upgrades kept!</strong>
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Stage Inspector & Launch Bar */}
       <div className="bg-[#1E253B] border-2 border-[#364266] p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -539,14 +553,14 @@ export const WorldMapView: React.FC<WorldMapViewProps> = ({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          {allCleared && (
+          {(allCleared || progress.victoryUnlocked) && (
             <button
               type="button"
               onClick={onOpenReunion}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2A3454] hover:bg-[#364266] text-[#FEF08A] border-2 border-[#FACC15]/70 text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[#FACC15]"
             >
               <Sparkles className="w-4 h-4" aria-hidden="true" />
-              <span>Reunion</span>
+              <span>{progress.victoryUnlocked ? 'Victory Screen' : 'Ending Scene'}</span>
             </button>
           )}
 
@@ -595,6 +609,7 @@ export const WorldMapView: React.FC<WorldMapViewProps> = ({
           {STAGES.map((st) => {
             const unlocked = st.id <= progress.highestUnlockedStage;
             const rescued = progress.rescuedStages.includes(st.id);
+            const hasUpgrade = rescued || progress.unlockedAbilities.includes(st.rewardAbility.id);
             const selected = st.id === selectedStageId;
 
             return (
@@ -626,7 +641,7 @@ export const WorldMapView: React.FC<WorldMapViewProps> = ({
                   {st.kitten.name}
                 </div>
                 <div className="text-[11px] mt-0.5 truncate text-[#94A3B8]">
-                  {rescued ? (
+                  {hasUpgrade ? (
                     <span className="text-[#86EFAC]">{st.rewardAbility.name}</span>
                   ) : (
                     <span>??? Ability</span>

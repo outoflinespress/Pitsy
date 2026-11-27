@@ -23,7 +23,7 @@ export type KittenAccessory =
   | 'shades_bow'
   | 'eye_mask'
   | 'trickster_tuft'
-  | 'feather_crown';
+  | 'leaf_crown';
 
 export interface KittenInfo {
   id: number;
@@ -35,7 +35,7 @@ export interface KittenInfo {
   accessory: KittenAccessory;
   meowPitch: number;
   bio: string;
-  holdsFeather?: boolean;
+  holdsLeaf?: boolean;
 }
 
 export interface AbilityInfo {
@@ -102,6 +102,9 @@ export interface StageBlueprint {
 export interface PlayerProgress {
   highestUnlockedStage: number; // 1..8
   rescuedStages: number[];
+  unlockedAbilities: AbilityId[]; // Persists across New Game+ (Round 2)
+  pitsySaves: number; // 0 = Round 1, 1 = saved Pitsy once (Round 2), 2+ = True Victory
+  victoryUnlocked: boolean;
   introSeen: boolean;
   bestTreatsByStage: Record<number, { collected: number; total: number }>;
   pendingUnlockStage: number | null;

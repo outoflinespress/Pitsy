@@ -288,11 +288,57 @@ class Retro16BitAudioEngine {
     this.playSynthNote(880, 0.16, 0.07, 0.08, 'sawtooth');
   }
 
-  public playFeatherChime(): void {
+  public playLeafChime(): void {
     const notes = [784, 988, 1175, 1319, 1568];
     notes.forEach((n, i) => {
       this.playVoice(n, n * 1.01, 0.22, 'sine', 0.05, i * 0.075);
       this.playVoice(n * 0.5, n * 0.5, 0.18, 'triangle', 0.03, i * 0.075);
+    });
+    this.playNoise(0.28, 0.032, 2600, 0.04);
+  }
+
+  public playFeatherChime(): void {
+    this.playLeafChime();
+  }
+
+  public playLoudMeowChorus(): void {
+    const pitches = [1.22, 1.08, 0.94, 1.15, 1.02, 0.98, 1.18];
+    pitches.forEach((p, idx) => {
+      window.setTimeout(() => {
+        this.playMeow(p, false);
+      }, idx * 110);
+    });
+  }
+
+  public playLullaby(): void {
+    // Soft 16-bit celesta/music-box lullaby notes
+    const notes = [523, 659, 784, 659, 587, 523, 440, 392];
+    notes.forEach((n, i) => {
+      this.playVoice(n, n, 0.42, 'sine', 0.045, i * 0.36);
+      this.playVoice(n * 0.5, n * 0.5, 0.45, 'triangle', 0.025, i * 0.36);
+    });
+  }
+
+  public playNooooChorus(): void {
+    // Hilarious dramatic descending multi-voice kitten "NOOOOO!" + dogpile thump!
+    this.playVoice(180, 62, 0.22, 'triangle', 0.14, 0);
+    this.playNoise(0.18, 0.07, 900, 0.02);
+    const starts = [740, 660, 588, 820];
+    starts.forEach((f, i) => {
+      this.playVoice(f, f * 0.46, 0.85, 'sawtooth', 0.052, 0.04 + i * 0.03, (i - 1.5) * 9);
+      this.playVoice(f * 0.99, f * 0.45, 0.88, 'triangle', 0.065, 0.04 + i * 0.03);
+    });
+  }
+
+  public playVictoryFanfare(): void {
+    const melody = [523, 659, 784, 1047, 784, 1047, 1319];
+    const harm = [330, 392, 523, 659, 523, 659, 784];
+    const delays = [0, 0.12, 0.24, 0.38, 0.54, 0.66, 0.82];
+    const durs = [0.11, 0.11, 0.13, 0.15, 0.11, 0.14, 0.55];
+    melody.forEach((n, i) => {
+      this.playSynthNote(n, durs[i], 0.07, delays[i], 'sawtooth');
+      this.playVoice(harm[i], harm[i], durs[i], 'triangle', 0.055, delays[i]);
+      this.playVoice(n * 0.5, n * 0.5, durs[i], 'sine', 0.05, delays[i]);
     });
   }
 

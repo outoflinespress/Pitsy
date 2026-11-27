@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PlayerProgress } from '../game/types';
-import { drawFeather, drawFierio, drawKitten } from '../game/sprites';
+import { drawFierio, drawKitten, drawMapleLeaf } from '../game/sprites';
 import { STAGES } from '../game/stages';
 import { audio } from '../game/audio';
 import { gamepadManager, useGamepadMenu, useGamepadStatus } from '../game/gamepad';
@@ -26,7 +26,8 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
   const [focusIdx, setFocusIdx] = useState(0);
   const [confirmIdx, setConfirmIdx] = useState(1); // Default to Cancel for safety
 
-  const hasProgress = progress.rescuedStages.length > 0 || progress.introSeen;
+  const hasProgress =
+    progress.rescuedStages.length > 0 || progress.introSeen || progress.pitsySaves > 0;
   const gamepad = useGamepadStatus();
   const mainCount = hasProgress ? 3 : 2;
 
@@ -105,8 +106,10 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
             pose: 'run',
             frame,
             facing: 1,
-            hasFlameShield: progress.rescuedStages.includes(5),
-            hasStarCrown: progress.rescuedStages.includes(8),
+            hasFlameShield:
+              progress.rescuedStages.includes(5) || progress.unlockedAbilities.includes('flame_shield'),
+            hasStarCrown:
+              progress.rescuedStages.includes(8) || progress.unlockedAbilities.includes('star_crown'),
             scale: 1.85,
             castShadow: true,
           });
@@ -123,14 +126,14 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
             });
           });
 
-          drawFeather(ctx, 304, 28, t * 2);
+          drawMapleLeaf(ctx, 304, 28, t * 2, 1.05);
         }
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [progress.rescuedStages]);
+  }, [progress.rescuedStages, progress.unlockedAbilities]);
 
   return (
     <div className="w-full max-w-5xl mx-auto">
@@ -151,7 +154,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
             </h1>
 
             <p className="text-sm sm:text-base text-[#CBD5E1] leading-relaxed max-w-xl">
-              Pitsy dashed off chasing a floating feather, and Angelica, Wizzle, D da Baller, Swipey, Ego, Mask, and Loki ran after him! Travel across an 8-stage world map—every rescued kitten meows happily, unlocks the next location, and teaches Fierio a new dragon ability.
+              Pitsy dashed off chasing a fluttering maple leaf, and Angelica, Wizzle, D da Baller, Swipey, Ego, Mask, and Loki ran after him! Travel across an 8-stage world map—every rescued kitten meows happily, unlocks the next location, and teaches Fierio a new dragon ability.
             </p>
 
             {/* Live 8-bit sprite parade */}
@@ -288,7 +291,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
             )}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0B0E17]/90 via-[#0B0E17]/50 to-transparent px-3.5 py-2.5">
               <p className="text-xs text-[#F8FAFC] font-medium">
-                Before the Great Feather Chase — Board Game Night
+                Before the Great Maple Leaf Chase — Board Game Night
               </p>
             </div>
           </div>
